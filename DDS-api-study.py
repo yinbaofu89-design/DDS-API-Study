@@ -165,12 +165,13 @@ def get_sample_messages():
     }
 
 def get_sample_files():
-    """サンプルファイル"""
+    """サンプルファイル（バイトデータ）"""
     return {
-        "テキストファイル": ("sample.txt", b"これはサンプルテキストファイルです。\n機密情報が含まれています。"),
-        "CSVファイル": ("sample.csv", b"name,email,phone\n山田太郎,taro@example.com,090-1234-5678"),
-        "JSONファイル": ("sample.json", b'{"name": "山田太郎", "email": "taro@example.com"}'),
-        "社外秘PDF": ("confidential.pdf", b"%PDF-1.4\n%机密信息\n1 0 obj\n<< /Type /Catalog ...>>"),
+        "テキストファイル": ("sample.txt", "これはサンプルテキストファイルです。\n機密情報が含まれています。".encode('utf-8')),
+        "CSVファイル": ("sample.csv", "name,email,phone\n山田太郎,taro@example.com,090-1234-5678".encode('utf-8')),
+        "JSONファイル": ("sample.json", '{"name": "山田太郎", "email": "taro@example.com"}'.encode('utf-8')),
+        "社外秘PDF": ("confidential.pdf", b"%PDF-1.4\n%PDF contents would go here\nThis is a sample PDF content."),
+        "ソースコード": ("sample.cpp", "// Sample C++ code\n#include <iostream>\nint main() {\n    std::cout << \"Hello\" << std::endl;\n    return 0;\n}".encode('utf-8')),
     }
 
 def generate_curl_code(url, headers, data):
@@ -623,6 +624,9 @@ def get_mime_type(filename):
         '.json': 'application/json',
         '.xml': 'text/xml',
         '.csv': 'text/csv',
+        '.cpp': 'text/plain',
+        '.c': 'text/plain',
+        '.h': 'text/plain',
     }
     return mime_map.get(ext, 'application/octet-stream')
 
