@@ -93,7 +93,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ==================== 初期化 ====================
+# ==================== セッション初期化 ====================
 if "history" not in st.session_state:
     st.session_state.history = []
 if "txid" not in st.session_state:
@@ -119,6 +119,11 @@ if "use_ssl" not in st.session_state:
     st.session_state.use_ssl = False
 if "verify_ssl" not in st.session_state:
     st.session_state.verify_ssl = True
+# JSONプレビューフラグ初期化
+if "show_file_json" not in st.session_state:
+    st.session_state.show_file_json = False
+if "show_message_json" not in st.session_state:
+    st.session_state.show_message_json = False
 
 # ==================== MIMEタイプマッピング ====================
 def get_mime_type(filename):
@@ -158,7 +163,7 @@ def get_mime_type(filename):
     }
     return mime_map.get(ext, 'application/octet-stream')
 
-# ==================== DDS送信関数 ====================
+# ==================== DDS送信共通関数（SSLロジック修正） ====================
 def send_detection_request(file_obj, source_type, dds_url, verify_ssl, data_type="DIM", content_block_id=None, mime_type=None):
     """
     DDSに検出リクエストを送信する共通関数
@@ -170,7 +175,8 @@ def send_detection_request(file_obj, source_type, dds_url, verify_ssl, data_type
         
         if source_type == "file":
             file_mime = get_mime_type(file_obj.name)
-            if file_obj.type and file_obj.type != 'application/octet-stream':
+            # アップロードオブジェクトのMIMEを優先
+            if hasattr(file_obj, "type") and file_obj.type and file_obj.type != 'application/octet-stream':
                 file_mime = file_obj.type
             
             block_id = file_obj.name.replace('.', '-') + "-001"
@@ -224,16 +230,17 @@ def send_detection_request(file_obj, source_type, dds_url, verify_ssl, data_type
             debug_data = request_data.copy()
             if "attachments" in debug_data:
                 for att in debug_data["attachments"]:
-                    att["data"] = f"{att['data'][:100]}... (Base64, {len(att['data'])}文字)"
+                    att["data"] = f"{att['data'][:120]}... (Base64, {len(att['data'])}文字)"
             if "subject" in debug_data:
-                debug_data["subject"]["data"] = f"{debug_data['subject']['data'][:100]}..."
+                debug_data["subject"]["data"] = f"{debug_data['subject']['data'][:120]}..."
             st.json(debug_data)
         
+        # 修正：verify引数を正しく設定（True=証明書検証有効）
         response = requests.post(
             dds_url,
             data=json_data,
             headers={"Content-Type": "application/json", "Accept": "application/json"},
-            verify=not verify_ssl,
+            verify=verify_ssl,
             timeout=60
         )
         
@@ -304,14 +311,14 @@ with st.sidebar:
         "SSL証明書を検証しない",
         value=st.session_state.verify_ssl,
         key="verify_ssl_input",
-        help="自己署名証明書を使用する場合にチェック"
+        help="自己署名証明書を使用する場合にチェック（チェック時verify=False）"
     )
     
     # セッション状態を更新
     st.session_state.dds_host = dds_host
     st.session_state.dds_port = dds_port
     st.session_state.use_ssl = use_ssl
-    st.session_state.verify_ssl = verify_ssl
+    st.session_state.verify_ssl = not verify_ssl  # UIチェックと内部フラグ逆に
     
     protocol = "https" if use_ssl else "http"
     dds_url = f"{protocol}://{dds_host}:{dds_port}/v2.0/DetectionRequests"
@@ -336,19 +343,24 @@ with st.sidebar:
     for i, f in enumerate(st.session_state.filters):
         cols = st.columns([3, 1])
         with cols[0]:
-            st.text_input(
+            filter_edit_id = st.text_input(
                 f"フィルター {i+1}",
                 value=f["id"],
                 key=f"filter_{i}",
                 label_visibility="collapsed"
             )
+            # 編集後IDを反映
+            if filter_edit_id != f["id"]:
+                st.session_state.filters[i]["id"] = filter_edit_id
             st.caption(f"📌 {f.get('name', '')}")
         with cols[1]:
             if st.button("🗑️", key=f"remove_{i}", help="このフィルターを削除"):
                 filters_to_remove.append(i)
     
-    for idx in sorted(filters_to_remove, reverse=True):
-        st.session_state.filters.pop(idx)
+    # 複数削除対応（逆順で削除）
+    if filters_to_remove:
+        for idx in sorted(filters_to_remove, reverse=True):
+            st.session_state.filters.pop(idx)
         st.rerun()
     
     if len(st.session_state.filters) < 10:
@@ -364,9 +376,9 @@ with st.sidebar:
                 key="new_filter_name"
             )
             if st.button("追加", use_container_width=True):
-                if new_filter_id:
+                if new_filter_id.strip():
                     st.session_state.filters.append({
-                        "id": new_filter_id,
+                        "id": new_filter_id.strip(),
                         "name": new_filter_name or f"フィルター {len(st.session_state.filters)+1}"
                     })
                     st.rerun()
@@ -385,12 +397,15 @@ with st.sidebar:
         st.session_state.txid = str(uuid.uuid4())
         st.rerun()
 
-# ==================== タブ ====================
+# ==================== タブ切り替え時プレビューフラグ初期化 ====================
 tab1, tab2, tab3 = st.tabs([
     "📁 ファイルアップロード",
     "💬 メッセージ送信",
     "📖 学習センター"
 ])
+# タブ切り替えでJSONプレビューを閉じる
+st.session_state.show_file_json = False
+st.session_state.show_message_json = False
 
 # ==================== タブ1: ファイルアップロード ====================
 with tab1:
@@ -429,7 +444,8 @@ with tab1:
         with col3:
             st.metric("MIMEタイプ", file_mime)
         with col4:
-            st.metric("形式", uploaded_file.name.split('.')[-1].upper() if '.' in uploaded_file.name else "不明")
+            ext = uploaded_file.name.split('.')[-1].upper() if '.' in uploaded_file.name else "不明"
+            st.metric("拡張子", ext)
         
         # テキストファイルのプレビュー
         if file_mime and "text" in file_mime:
@@ -439,7 +455,7 @@ with tab1:
                 st.text_area("📄 ファイル内容プレビュー", content[:1000], height=150)
                 if len(content) > 1000:
                     st.caption(f"... 他 {len(content) - 1000} 文字")
-            except:
+            except Exception:
                 pass
             finally:
                 uploaded_file.seek(0)
@@ -486,13 +502,13 @@ with tab1:
                     st.json(request_data)
                     st.caption(f"Base64データ長: {len(b64_data):,} 文字")
                 except Exception as e:
-                    st.error(f"JSON生成エラー: {e}")
+                    st.error(f"JSON生成エラー: {str(e)}")
                 finally:
                     uploaded_file.seek(0)
         
         if send_file_button:
             violations, request_id, response_data, error_info = send_detection_request(
-                uploaded_file, "file", dds_url, verify_ssl
+                uploaded_file, "file", dds_url, st.session_state.verify_ssl
             )
             
             st.divider()
@@ -501,7 +517,7 @@ with tab1:
             st.markdown(f"**ステータスコード:** <span style='color:{status_color};font-weight:bold;'>201</span>", unsafe_allow_html=True)
             
             if error_info:
-                st.error(f"❌ エラーが発生しました: {error_info}")
+                st.error(f"❌ エラーが発生しました: {json.dumps(error_info, ensure_ascii=False, indent=2)}")
             elif violations:
                 st.warning(f"⚠️ {len(violations)}件のポリシー違反が検出されました")
                 for v in violations:
@@ -519,7 +535,7 @@ with tab1:
                 "source": uploaded_file.name,
                 "type": "file",
                 "mime_type": file_mime,
-                "file_size": len(uploaded_file.getvalue()),
+                "file_size": uploaded_file.size,
                 "status": 201 if response_data else "Error",
                 "txid": st.session_state.txid
             })
@@ -583,9 +599,10 @@ with tab2:
                     }
                     st.json(request_data)
                 except Exception as e:
-                    st.error(f"JSON生成エラー: {e}")
+                    st.error(f"JSON生成エラー: {str(e)}")
         
         if send_message_button:
+            # 修正：getvalueメソッド追加、履歴サイズ取得対応
             class MessageWrapper:
                 def __init__(self, content, name):
                     self.content = content
@@ -596,10 +613,12 @@ with tab2:
                     return self.content.encode('utf-8')
                 def seek(self, pos):
                     pass
+                def getvalue(self):
+                    return self.content.encode("utf-8")
             
             message_wrapper = MessageWrapper(message_content, content_block_id)
             violations, request_id, response_data, error_info = send_detection_request(
-                message_wrapper, "message", dds_url, verify_ssl, data_type, content_block_id
+                message_wrapper, "message", dds_url, st.session_state.verify_ssl, data_type, content_block_id
             )
             
             st.divider()
@@ -608,7 +627,7 @@ with tab2:
             st.markdown(f"**ステータスコード:** <span style='color:{status_color};font-weight:bold;'>201</span>", unsafe_allow_html=True)
             
             if error_info:
-                st.error(f"❌ エラーが発生しました: {error_info}")
+                st.error(f"❌ エラーが発生しました: {json.dumps(error_info, ensure_ascii=False, indent=2)}")
             elif violations:
                 st.warning(f"⚠️ {len(violations)}件のポリシー違反が検出されました")
                 for v in violations:
@@ -626,7 +645,7 @@ with tab2:
                 "source": "メッセージ",
                 "type": "message",
                 "mime_type": "text/plain",
-                "file_size": len(message_content),
+                "file_size": len(message_content.encode("utf-8")),
                 "status": 201 if response_data else "Error",
                 "txid": st.session_state.txid
             })
@@ -678,7 +697,7 @@ with tab3:
             <tr><td><code>common.dataType</code></td><td>データタイプ</td><td><span class="badge badge-required">必須</span></td><td><code>"DIM"</code> または <code>"MSG"</code></td></tr>
             <tr><td><code>common.filter</code></td><td>ポリシーフィルター</td><td><span class="badge badge-required">必須</span></td><td><code>"c23de41e-..."</code></td></tr>
             <tr><td><code>common.transactionId</code></td><td>トランザクションID</td><td><span class="badge badge-required">必須</span></td><td><code>"uuid"</code></td></tr>
-            <tr><td><code>subject.data</code></td><td>メッセージ本文</td><td><span class="badge badge-optional">オプション</span></td><td><code>"SGVsbG8g..."</code></td></tr>
+            <tr><td><code>subject.data</code></td><td>メッセージ本文</td><td><span class="badge badge-optional">オプション</span></td><td><code>"SGVsbG8..."</code></td></tr>
             <tr><td><code>attachments[].data</code></td><td>ファイルデータ</td><td><span class="badge badge-optional">オプション</span></td><td><code>"JVBERi0x..."</code></td></tr>
             <tr><td><code>attachments[].mimeType</code></td><td>MIMEタイプ</td><td><span class="badge badge-optional">オプション</span></td><td><code>"application/pdf"</code></td></tr>
             </table>
@@ -783,37 +802,31 @@ with tab3:
             code = f'''curl -X POST "{dds_url}" \\
   -H "Content-Type: application/json" \\
   -H "Accept: application/json" \\
-  -d '{json.dumps(sample_request, ensure_ascii=False)}''
+  -d '{json.dumps(sample_request, ensure_ascii=False)}'
+'''
         elif language == "Python":
             code = f'''import requests
 import json
 import base64
-
 url = "{dds_url}"
 headers = {{"Content-Type": "application/json", "Accept": "application/json"}}
 data = {json.dumps(sample_request, indent=2, ensure_ascii=False)}
-
-response = requests.post(url, json=data, headers=headers)
+response = requests.post(url, json=data, headers=headers, verify={st.session_state.verify_ssl})
 print(f"ステータスコード: {{response.status_code}}")
 print(f"レスポンス: {{response.json()}}")
 '''
-                    else:  # PowerShell
-            data_json = json.dumps(sample_request, indent=2, ensure_ascii=False)
+        else:  # PowerShell
+            data_json = json.dumps(sample_request, indent=2, ensure_ascii=False).replace('"', '""')
             code = f'''$headers = @{{
     "Content-Type" = "application/json"
     "Accept" = "application/json"
 }}
-
 $body = @'
-{data_json}
+{json.dumps(sample_request, indent=2, ensure_ascii=False)}
 '@
-
 $response = Invoke-RestMethod -Uri "{dds_url}" -Method Post -Headers $headers -Body $body
 $response | ConvertTo-Json -Depth 10
 '''
-            
-        
-        
         st.code(code, language=language.lower())
     
     # サブタブ4: エラー対処
@@ -889,4 +902,4 @@ with st.expander("📜 送信履歴", expanded=False):
 # ==================== フッター ====================
 st.divider()
 st.caption("🔒 Symantec Data Loss Prevention Detection REST API 2.0 - ファイル・メッセージ検出テストツール")
-st.caption("📖 参照: [Broadcom DDS API ドキュメント](https://techdocs.broadcom.com/us/en/symantec-security-software/information-security/data-loss-prevention/25-1/about-application-detection/overview-of-the-detection-rest-api-2-0.html)")
+st.caption("📖 公式ドキュメント: https://techdocs.broadcom.com/us/en/symantec-security-software/information-security/data-loss-prevention/25-1/about-application-detection/overview-of-the-detection-rest-api-2-0.html")
