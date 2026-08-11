@@ -802,6 +802,7 @@ print(f"レスポンス: {{response.json()}}")
     "Content-Type" = "application/json"
     "Accept" = "application/json"
 }}
+
 $body = @'
 {json.dumps(sample_request, indent=2, ensure_ascii=False)}
 '@
