@@ -796,9 +796,10 @@ data = {json.dumps(sample_request, indent=2, ensure_ascii=False)}
 response = requests.post(url, json=data, headers=headers)
 print(f"ステータスコード: {{response.status_code}}")
 print(f"レスポンス: {{response.json()}}")
-else:  # PowerShell
-    data_json = json.dumps(sample_request, indent=2, ensure_ascii=False)
-    code = f'''$headers = @{{
+'''
+        else:  # PowerShell
+            data_json = json.dumps(sample_request, indent=2, ensure_ascii=False)
+            code = f'''$headers = @{{
     "Content-Type" = "application/json"
     "Accept" = "application/json"
 }}
