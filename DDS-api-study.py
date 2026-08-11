@@ -773,3 +773,119 @@ with tab4:
                 **💡 正しい例:**
                 ```json
                 {err['example']}
+""")
+
+==================== タブ5: クイズ ====================
+with tab5:
+st.markdown("## 📝 理解度チェック クイズ")
+st.markdown("DDS APIの理解を確認しましょう。")
+
+クイズデータ
+quiz_data = [
+{
+"question": "DDS APIでメッセージを送信する場合、subject.mimeTypeは何を指定すべきですか？",
+"options": ["text/plain", "text/html", "application/json", "application/octet-stream"],
+"correct": 0,
+"explanation": "subjectは text/plain のみ許可されます。"
+},
+{
+"question": "ファイルをDDSに送信する場合、データはどのフィールドに配置しますか？",
+"options": ["subject", "attachments", "context", "body"],
+"correct": 1,
+"explanation": "ファイルは attachments フィールドに配置します。"
+},
+{
+"question": "DDS APIで必須のフィールドはどれですか？",
+"options": ["common.application", "subject.data", "attachments", "body"],
+"correct": 0,
+"explanation": "common.application は必須フィールドです。"
+},
+{
+"question": "データをBase64エンコードする理由は何ですか？",
+"options": [
+"データを圧縮するため",
+"バイナリデータをテキスト形式で送信するため",
+"暗号化するため",
+"サイズを小さくするため"
+],
+"correct": 1,
+"explanation": "Base64はバイナリデータをテキスト形式で表現するためのエンコード方式です。"
+},
+{
+"question": "DDS APIのエンドポイントは何ですか？",
+"options": [
+"/v1/detection",
+"/v2.0/DetectionRequests",
+"/api/detect",
+"/v2/detection"
+],
+"correct": 1,
+"explanation": "正しいエンドポイントは /v2.0/DetectionRequests です。"
+}
+]
+
+クイズ表示
+for i, quiz in enumerate(quiz_data):
+st.markdown(f"### 問題 {i+1}: {quiz['question']}")
+
+選択肢を表示
+selected = st.radio(
+"回答を選択してください",
+quiz["options"],
+key=f"quiz_{i}",
+index=None
+)
+
+回答ボタン
+if st.button(f"回答を確認 (問題 {i+1})", key=f"check_{i}"):
+if selected is None:
+st.warning("⚠️ 選択肢を選んでください。")
+else:
+selected_index = quiz["options"].index(selected)
+if selected_index == quiz["correct"]:
+st.success("✅ 正解！")
+else:
+st.error(f"❌ 不正解。正解は: {quiz['options'][quiz['correct']]}")
+st.info(f"💡 {quiz['explanation']}")
+
+st.divider()
+
+クイズ結果集計
+st.markdown("### 📊 クイズ結果")
+if st.button("📈 結果を集計", use_container_width=True):
+correct_count = 0
+total = len(quiz_data)
+
+for i, quiz in enumerate(quiz_data):
+
+セッション状態から回答を取得
+key = f"quiz_{i}"
+if key in st.session_state:
+selected = st.session_state[key]
+if selected and quiz["options"].index(selected) == quiz["correct"]:
+correct_count += 1
+
+st.metric("正解率", f"{correct_count}/{total}", f"{correct_count/total*100:.0f}%")
+
+if correct_count == total:
+st.balloons()
+st.success("🎉 パーフェクト！DDS APIの理解が完璧です！")
+elif correct_count >= total * 0.7:
+st.success("👍 良好！あと少しで完璧です。")
+else:
+st.info("📖 もう一度「基本ガイド」を復習してみましょう。")
+
+==================== フッター ====================
+st.divider()
+st.markdown(
+"""
+
+<div style="text-align: center; color: #666; font-size: 0.8rem;"> 📚 DDS API ラーニングセンター v1.0<br> Powered by Streamlit | データは保存されません </div> """, unsafe_allow_html=True )
+==================== DDS設定用の隠し設定 ====================
+サイドバーにDDS設定を追加（グローバル）
+with st.sidebar:
+st.divider()
+st.markdown("### 🔧 DDSサーバー設定")
+st.session_state.dds_host = st.text_input("ホスト", value="192.168.2.132", key="global_dds_host")
+st.session_state.dds_port = st.text_input("ポート", value="443", key="global_dds_port")
+st.session_state.use_ssl = st.checkbox("SSL/TLS", value=False, key="global_dds_ssl")
