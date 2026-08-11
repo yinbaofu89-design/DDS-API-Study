@@ -882,7 +882,6 @@ st.markdown(
 
 <div style="text-align: center; color: #666; font-size: 0.8rem;"> 📚 DDS API ラーニングセンター v1.0<br> Powered by Streamlit | データは保存されません </div> """, unsafe_allow_html=True )
 ==================== DDS設定用の隠し設定 ====================
-サイドバーにDDS設定を追加（グローバル）
 with st.sidebar:
 st.divider()
 st.markdown("### 🔧 DDSサーバー設定")
