@@ -797,7 +797,7 @@ response = requests.post(url, json=data, headers=headers)
 print(f"ステータスコード: {{response.status_code}}")
 print(f"レスポンス: {{response.json()}}")
 '''
-        else:  # PowerShell
+                    else:  # PowerShell
             data_json = json.dumps(sample_request, indent=2, ensure_ascii=False)
             code = f'''$headers = @{{
     "Content-Type" = "application/json"
@@ -811,6 +811,8 @@ $body = @'
 $response = Invoke-RestMethod -Uri "{dds_url}" -Method Post -Headers $headers -Body $body
 $response | ConvertTo-Json -Depth 10
 '''
+            
+        
         
         st.code(code, language=language.lower())
     
