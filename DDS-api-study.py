@@ -207,10 +207,11 @@ print(f"レスポンス: {{response.json()}}")
 
 def generate_powershell_code(url, headers, data):
     """PowerShellコードを生成"""
-    header_str = ",\n  ".join([f'@{k} = "{v}"' for k, v in headers.items()])
+    # PowerShell 用ヘッダー表現を準備
+    header_lines = "\n  ".join([f"'{k}' = '{v}'" for k, v in headers.items()])
     data_str = json.dumps(data, ensure_ascii=False)
-    return f'''$headers = @{{
-  {header_str}
+    return f'''$headers = @{{ 
+  {header_lines}
 }}
 
 $body = @'
@@ -574,7 +575,7 @@ def show_error_guidance(response):
         ✅ 正しい値: <code>"DIM"</code> または <code>"MSG"</code>
         </div>
         """, unsafe_allow_html=True)
-    elif "incorrect mimetype" in error_text or "mimeType" in error_text:
+    elif "incorrect mimetype" in error_text or "mimetype" in error_text:
         st.markdown("""
         <div class="info-box">
         <b>💡 エラー解説:</b><br>
@@ -707,8 +708,6 @@ with tab3:
                 - `-Method Post`: POSTメソッドを指定
                 - `-Headers`: ヘッダーを指定
                 """)
-    else:
-        st.info("💡 まず「練習モード」でリクエストを送信してから、ここでコードを生成してください。")
 
 # ==================== タブ4: エラー対処 ====================
 with tab4:
@@ -773,118 +772,117 @@ with tab4:
                 **💡 正しい例:**
                 ```json
                 {err['example']}
-""")
+                ```""")
 
 # ==================== タブ5: クイズ ====================
 with tab5:
-st.markdown("## 📝 理解度チェック クイズ")
-st.markdown("DDS APIの理解を確認しましょう。")
+    st.markdown("## 📝 理解度チェック クイズ")
+    st.markdown("DDS APIの理解を確認しましょう。")
 
-クイズデータ
-quiz_data = [
-{
-"question": "DDS APIでメッセージを送信する場合、subject.mimeTypeは何を指定すべきですか？",
-"options": ["text/plain", "text/html", "application/json", "application/octet-stream"],
-"correct": 0,
-"explanation": "subjectは text/plain のみ許可されます。"
-},
-{
-"question": "ファイルをDDSに送信する場合、データはどのフィールドに配置しますか？",
-"options": ["subject", "attachments", "context", "body"],
-"correct": 1,
-"explanation": "ファイルは attachments フィールドに配置します。"
-},
-{
-"question": "DDS APIで必須のフィールドはどれですか？",
-"options": ["common.application", "subject.data", "attachments", "body"],
-"correct": 0,
-"explanation": "common.application は必須フィールドです。"
-},
-{
-"question": "データをBase64エンコードする理由は何ですか？",
-"options": [
-"データを圧縮するため",
-"バイナリデータをテキスト形式で送信するため",
-"暗号化するため",
-"サイズを小さくするため"
-],
-"correct": 1,
-"explanation": "Base64はバイナリデータをテキスト形式で表現するためのエンコード方式です。"
-},
-{
-"question": "DDS APIのエンドポイントは何ですか？",
-"options": [
-"/v1/detection",
-"/v2.0/DetectionRequests",
-"/api/detect",
-"/v2/detection"
-],
-"correct": 1,
-"explanation": "正しいエンドポイントは /v2.0/DetectionRequests です。"
-}
-]
+    quiz_data = [
+        {
+            "question": "DDS APIでメッセージを送信する場合、subject.mimeTypeは何を指定すべきですか？",
+            "options": ["text/plain", "text/html", "application/json", "application/octet-stream"],
+            "correct": 0,
+            "explanation": "subjectは text/plain のみ許可されます。"
+        },
+        {
+            "question": "ファイルをDDSに送信する場合、データはどのフィールドに配置しますか？",
+            "options": ["subject", "attachments", "context", "body"],
+            "correct": 1,
+            "explanation": "ファイルは attachments フィールドに配置します。"
+        },
+        {
+            "question": "DDS APIで必須のフィールドはどれですか？",
+            "options": ["common.application", "subject.data", "attachments", "body"],
+            "correct": 0,
+            "explanation": "common.application は必須フィールドです。"
+        },
+        {
+            "question": "データをBase64エンコードする理由は何ですか？",
+            "options": [
+                "データを圧縮するため",
+                "バイナリデータをテキスト形式で送信するため",
+                "暗号化するため",
+                "サイズを小さくするため"
+            ],
+            "correct": 1,
+            "explanation": "Base64はバイナリデータをテキスト形式で表現するためのエンコード方式です。"
+        },
+        {
+            "question": "DDS APIのエンドポイントは何ですか？",
+            "options": [
+                "/v1/detection",
+                "/v2.0/DetectionRequests",
+                "/api/detect",
+                "/v2/detection"
+            ],
+            "correct": 1,
+            "explanation": "正しいエンドポイントは /v2.0/DetectionRequests です。"
+        }
+    ]
 
+    for i, quiz in enumerate(quiz_data):
+        st.markdown(f"### 問題 {i+1}: {quiz['question']}")
 
-for i, quiz in enumerate(quiz_data):
-st.markdown(f"### 問題 {i+1}: {quiz['question']}")
+        selected = st.radio(
+            "回答を選択してください",
+            quiz["options"],
+            key=f"quiz_{i}"
+        )
 
+        if st.button(f"回答を確認 (問題 {i+1})", key=f"check_{i}"):
+            if selected is None:
+                st.warning("⚠️ 選択肢を選んでください。")
+            else:
+                selected_index = quiz["options"].index(selected)
+                if selected_index == quiz["correct"]:
+                    st.success("✅ 正解！")
+                else:
+                    st.error(f"❌ 不正解。正解は: {quiz['options'][quiz['correct']]}")
+                st.info(f"💡 {quiz['explanation']}")
 
-selected = st.radio(
-"回答を選択してください",
-quiz["options"],
-key=f"quiz_{i}",
-index=None
-)
+        st.divider()
 
+    st.markdown("### 📊 クイズ結果")
+    if st.button("📈 結果を集計", use_container_width=True):
+        correct_count = 0
+        total = len(quiz_data)
 
-if st.button(f"回答を確認 (問題 {i+1})", key=f"check_{i}"):
-if selected is None:
-st.warning("⚠️ 選択肢を選んでください。")
-else:
-selected_index = quiz["options"].index(selected)
-if selected_index == quiz["correct"]:
-st.success("✅ 正解！")
-else:
-st.error(f"❌ 不正解。正解は: {quiz['options'][quiz['correct']]}")
-st.info(f"💡 {quiz['explanation']}")
+        for i, quiz in enumerate(quiz_data):
+            key = f"quiz_{i}"
+            if key in st.session_state:
+                selected = st.session_state[key]
+                if selected and quiz["options"].index(selected) == quiz["correct"]:
+                    correct_count += 1
 
-st.divider()
+        st.metric("正解率", f"{correct_count}/{total}", f"{correct_count/total*100:.0f}%")
 
-
-st.markdown("### 📊 クイズ結果")
-if st.button("📈 結果を集計", use_container_width=True):
-correct_count = 0
-total = len(quiz_data)
-
-for i, quiz in enumerate(quiz_data):
-
-
-key = f"quiz_{i}"
-if key in st.session_state:
-selected = st.session_state[key]
-if selected and quiz["options"].index(selected) == quiz["correct"]:
-correct_count += 1
-
-st.metric("正解率", f"{correct_count}/{total}", f"{correct_count/total*100:.0f}%")
-
-if correct_count == total:
-st.balloons()
-st.success("🎉 パーフェクト！DDS APIの理解が完璧です！")
-elif correct_count >= total * 0.7:
-st.success("👍 良好！あと少しで完璧です。")
-else:
-st.info("📖 もう一度「基本ガイド」を復習してみましょう。")
+        if correct_count == total:
+            st.balloons()
+            st.success("🎉 パーフェクト！DDS APIの理解が完璧です！")
+        elif correct_count >= total * 0.7:
+            st.success("👍 良好！あと少しで完璧です。")
+        else:
+            st.info("📖 もう一度「基本ガイド」を復習してみましょう。")
 
 # ==================== フッター ====================
 st.divider()
 st.markdown(
-"""
+    """
+<div style="text-align: center; color: #666; font-size: 0.8rem;">
+📚 DDS API ラーニングセンター v1.0<br>
+Powered by Streamlit | データは保存されません
+</div>
+""",
+    unsafe_allow_html=True
+)
 
-<div style="text-align: center; color: #666; font-size: 0.8rem;"> 📚 DDS API ラーニングセンター v1.0<br> Powered by Streamlit | データは保存されません </div> """, unsafe_allow_html=True )
 # ==================== DDS設定用の隠し設定 ====================
 with st.sidebar:
-st.divider()
-st.markdown("### 🔧 DDSサーバー設定")
-st.session_state.dds_host = st.text_input("ホスト", value="192.168.2.132", key="global_dds_host")
-st.session_state.dds_port = st.text_input("ポート", value="443", key="global_dds_port")
-st.session_state.use_ssl = st.checkbox("SSL/TLS", value=False, key="global_dds_ssl")
+    st.divider()
+    st.markdown("### 🔧 DDSサーバー設定")
+    # キー名を send_to_dds から参照しているものに合わせて統一
+    st.session_state["dds_host"] = st.text_input("ホスト", value="192.168.2.132", key="dds_host")
+    st.session_state["dds_port"] = st.text_input("ポート", value="443", key="dds_port")
+    st.session_state["use_ssl"] = st.checkbox("SSL/TLS", value=False, key="use_ssl")
