@@ -775,7 +775,7 @@ with tab4:
                 {err['example']}
 """)
 
-==================== タブ5: クイズ ====================
+# ==================== タブ5: クイズ ====================
 with tab5:
 st.markdown("## 📝 理解度チェック クイズ")
 st.markdown("DDS APIの理解を確認しましょう。")
@@ -824,11 +824,11 @@ quiz_data = [
 }
 ]
 
-クイズ表示
+
 for i, quiz in enumerate(quiz_data):
 st.markdown(f"### 問題 {i+1}: {quiz['question']}")
 
-選択肢を表示
+
 selected = st.radio(
 "回答を選択してください",
 quiz["options"],
@@ -836,7 +836,7 @@ key=f"quiz_{i}",
 index=None
 )
 
-回答ボタン
+
 if st.button(f"回答を確認 (問題 {i+1})", key=f"check_{i}"):
 if selected is None:
 st.warning("⚠️ 選択肢を選んでください。")
@@ -850,7 +850,7 @@ st.info(f"💡 {quiz['explanation']}")
 
 st.divider()
 
-クイズ結果集計
+
 st.markdown("### 📊 クイズ結果")
 if st.button("📈 結果を集計", use_container_width=True):
 correct_count = 0
@@ -858,7 +858,7 @@ total = len(quiz_data)
 
 for i, quiz in enumerate(quiz_data):
 
-セッション状態から回答を取得
+
 key = f"quiz_{i}"
 if key in st.session_state:
 selected = st.session_state[key]
@@ -875,13 +875,13 @@ st.success("👍 良好！あと少しで完璧です。")
 else:
 st.info("📖 もう一度「基本ガイド」を復習してみましょう。")
 
-==================== フッター ====================
+# ==================== フッター ====================
 st.divider()
 st.markdown(
 """
 
 <div style="text-align: center; color: #666; font-size: 0.8rem;"> 📚 DDS API ラーニングセンター v1.0<br> Powered by Streamlit | データは保存されません </div> """, unsafe_allow_html=True )
-==================== DDS設定用の隠し設定 ====================
+# ==================== DDS設定用の隠し設定 ====================
 with st.sidebar:
 st.divider()
 st.markdown("### 🔧 DDSサーバー設定")
